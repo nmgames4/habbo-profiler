@@ -37,15 +37,16 @@ exports.handler = async (event, context) => {
                         return {
                             name: username,
                             lastAccessTime: userData.lastAccessTime || 'N/A', // Default to 'N/A' if field not found
-                            online: userData.online || 'N/A'
+                            online: userData.online || false
                         };
                     } else {
                         return null; // Return null if the response is invalid
                     }
                 } catch (err) {
-                    return console.log(err);
+                    console.log(err)
+                    return null;
                 } finally {
-                    await wait(500);
+                    await wait(1000);
                 }
             });
 
