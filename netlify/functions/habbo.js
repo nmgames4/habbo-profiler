@@ -1,6 +1,5 @@
 const fetch = require('node-fetch');
 
-// Utility function to create a delay
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -10,8 +9,6 @@ exports.handler = async (event, context) => {
 
     try {
         if (path.endsWith('/usdf')) {
-            // Handle the /usdf path to fetch data from Google Sheets and Habbo API
-
             const sheetUrl = 'https://script.google.com/macros/s/AKfycbzk8plLG2Vxidu_9HuCqS-OO0y6RUK-k36NHQUyWtOA9jm-vjZkyawnTAq_2x9UWp0olA/exec';
             const sheetResponse = await fetch(sheetUrl);
             const sheetData = await sheetResponse.json();
@@ -21,17 +18,14 @@ exports.handler = async (event, context) => {
                 return { statusCode: 500, body: 'No data found in Google Sheets or not enough rows.' };
             }
 
-            // Extract usernames from the Google Sheets data
-            const usernames = rows
-                .slice(4) // Skip first 4 rows
-                .filter(row => row && row[1]) // Filter out empty rows
-                .map(row => row[1]); // Extract username from the second column (index 1)
+            const usernames = rows.slice(4)
+                .filter(row => row && row[1])
+                .map(row => row[1]);
 
-            // Fetch Habbo data for each username
             const userDataPromises = usernames.map((username, index) =>
                 new Promise(async (resolve) => {
                     try {
-                        await wait(index * 500); // Stagger requests by 500ms
+                        await wait(index * 200); // Reduced stagger time to 200ms
                         const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
                         const userData = await userResponse.json();
 
@@ -54,7 +48,6 @@ exports.handler = async (event, context) => {
             const allUserData = await Promise.all(userDataPromises);
             const validUserData = allUserData.filter(user => user !== null);
 
-            // Build the HTML table
             let table = `
                 <table border="1" cellpadding="5" cellspacing="0">
                     <thead>
@@ -84,8 +77,7 @@ exports.handler = async (event, context) => {
             };
 
         } else {
-            // Handle the /v1/:name path for individual user lookup
-            const name = path.split('/').pop(); // Extract username from the path
+            const name = path.split('/').pop();
 
             if (!name) {
                 return { statusCode: 400, body: 'Please provide a username.' };
@@ -99,7 +91,6 @@ exports.handler = async (event, context) => {
                     return { statusCode: 500, body: 'Invalid username or API error.' };
                 }
 
-                // Build the HTML table for individual user data
                 let table = `
                     <table border="1" cellpadding="5" cellspacing="0">
                         <thead>
