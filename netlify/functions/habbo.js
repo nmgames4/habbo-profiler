@@ -1,5 +1,9 @@
 const fetch = require('node-fetch');
 
+function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 exports.handler = async (event, context) => {
     const path = event.path;
 
@@ -33,13 +37,15 @@ exports.handler = async (event, context) => {
                         return {
                             name: username,
                             lastAccessTime: userData.lastAccessTime || 'N/A', // Default to 'N/A' if field not found
-                            online: userData.online || false
+                            online: userData.online || 'N/A'
                         };
                     } else {
                         return null; // Return null if the response is invalid
                     }
                 } catch (err) {
                     return null;
+                } finally {
+                    await wait(200);
                 }
             });
 
