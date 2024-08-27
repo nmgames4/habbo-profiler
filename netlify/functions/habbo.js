@@ -45,7 +45,7 @@ exports.handler = async (event, context) => {
                 } catch (err) {
                     return console.log(err);
                 } finally {
-                    await wait(200);
+                    await wait(500);
                 }
             });
 
