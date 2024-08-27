@@ -27,28 +27,29 @@ exports.handler = async (event, context) => {
                 .map(row => row[1]); // Assuming username is in the second field (index 1)
 
             // Fetch Habbo data for each valid username
-            const userDataPromises = usernames.map(async (username) => {
-                try {
-                    console.log(usernames.toString())
-                    await wait(1000);
-                    const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
-                    const userData = await userResponse.json();
+            const userDataPromises = usernames.map((username, index) =>
+                new Promise(async (resolve) => {
+                    try {
+                        await wait(index * 1000); // Stagger requests by 1 second each
+                        console.log(username);
+                        const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
+                        const userData = await userResponse.json();
 
-                    // Ensure that the response is JSON
-                    if (typeof userData === 'object' && !userData.error) {
-                        return {
-                            name: username,
-                            lastAccessTime: userData.lastAccessTime || 'N/A', // Default to 'N/A' if field not found
-                            online: userData.online || false
-                        };
-                    } else {
-                        return null; // Return null if the response is invalid
+                        if (typeof userData === 'object' && !userData.error) {
+                            resolve({
+                                name: username,
+                                lastAccessTime: userData.lastAccessTime || 'N/A',
+                                online: userData.online || false
+                            });
+                        } else {
+                            resolve(null);
+                        }
+                    } catch (err) {
+                        console.log(err.message);
+                        resolve(null);
                     }
-                } catch (err) {
-                    console.log(err.message)
-                    return null;
-                }
-            });
+                })
+            );
 
             const allUserData = await Promise.all(userDataPromises);
 
