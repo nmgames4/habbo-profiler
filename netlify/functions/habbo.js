@@ -54,7 +54,7 @@ exports.handler = async (event, context) => {
                 }
 
                 // Wait 0.5 seconds between each request
-                await wait(1);
+                // await wait(1);
             }
 
             // Build the HTML table for USDF lookup
