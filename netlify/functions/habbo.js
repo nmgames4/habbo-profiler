@@ -4,6 +4,26 @@ function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function fetchUserData(username) {
+    try {
+        const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
+        const userData = await userResponse.json();
+
+        if (userData && !userData.error) {
+            return {
+                name: username,
+                lastAccessTime: userData.lastAccessTime || 'N/A',
+                online: userData.online || false
+            };
+        } else {
+            return null;
+        }
+    } catch (err) {
+        console.log(err.message);
+        return null;
+    }
+}
+
 exports.handler = async (event, context) => {
     const path = event.path;
 
@@ -22,31 +42,16 @@ exports.handler = async (event, context) => {
                 .filter(row => row && row[1])
                 .map(row => row[1]);
 
-            const userDataPromises = usernames.map((username, index) =>
-                new Promise(async (resolve) => {
-                    try {
-                        await wait(index * 200); // Reduced stagger time to 200ms
-                        const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
-                        const userData = await userResponse.json();
+            const batchSize = 10; // Number of users to fetch in each batch
+            let validUserData = [];
 
-                        if (userData && !userData.error) {
-                            resolve({
-                                name: username,
-                                lastAccessTime: userData.lastAccessTime || 'N/A',
-                                online: userData.online || false
-                            });
-                        } else {
-                            resolve(null);
-                        }
-                    } catch (err) {
-                        console.log(err.message);
-                        resolve(null);
-                    }
-                })
-            );
-
-            const allUserData = await Promise.all(userDataPromises);
-            const validUserData = allUserData.filter(user => user !== null);
+            for (let i = 0; i < usernames.length; i += batchSize) {
+                const batchUsernames = usernames.slice(i, i + batchSize);
+                const userDataPromises = batchUsernames.map(username => fetchUserData(username));
+                const batchUserData = await Promise.all(userDataPromises);
+                validUserData.push(...batchUserData.filter(user => user !== null));
+                await wait(200); // Optional: Delay between batches
+            }
 
             let table = `
                 <table border="1" cellpadding="5" cellspacing="0">
@@ -83,43 +88,37 @@ exports.handler = async (event, context) => {
                 return { statusCode: 400, body: 'Please provide a username.' };
             }
 
-            try {
-                const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${name}`);
-                const userData = await userResponse.json();
+            const userData = await fetchUserData(name);
 
-                if (!userData || userData.error) {
-                    return { statusCode: 500, body: 'Invalid username or API error.' };
-                }
-
-                let table = `
-                    <table border="1" cellpadding="5" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>Field</th>
-                                <th>Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-
-                Object.keys(userData).forEach(field => {
-                    table += `
-                        <tr>
-                            <td>${field}</td>
-                            <td>${userData[field] !== null ? userData[field] : 'N/A'}</td>
-                        </tr>`;
-                });
-
-                table += `</tbody></table>`;
-
-                return {
-                    statusCode: 200,
-                    headers: { 'Content-Type': 'text/html' },
-                    body: `<html><head><title>Habbo User Data</title></head><body>${table}</body></html>`
-                };
-
-            } catch (err) {
-                return { statusCode: 500, body: `Error: ${err.message}` };
+            if (!userData) {
+                return { statusCode: 500, body: 'Invalid username or API error.' };
             }
+
+            let table = `
+                <table border="1" cellpadding="5" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            Object.keys(userData).forEach(field => {
+                table += `
+                    <tr>
+                        <td>${field}</td>
+                        <td>${userData[field] !== null ? userData[field] : 'N/A'}</td>
+                    </tr>`;
+            });
+
+            table += `</tbody></table>`;
+
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'text/html' },
+                body: `<html><head><title>Habbo User Data</title></head><body>${table}</body></html>`
+            };
         }
 
     } catch (error) {
