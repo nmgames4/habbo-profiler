@@ -2,6 +2,6 @@
 functions = "netlify/functions"
 
 [[redirects]]
-from = "/v1/*"
-to = "/.netlify/functions/habbo"
+from = "/v1/:username"
+to = "/.netlify/functions/habbo?name=:username"
 status = 200
