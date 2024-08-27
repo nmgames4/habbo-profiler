@@ -1,44 +1,10 @@
 const fetch = require('node-fetch');
 
 function wait(ms) {
-    return new Promise(function(resolve) {
-        setTimeout(resolve, ms);
-    });
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function fetchUserData(username, index) {
-    return new Promise(async function(resolve) {
-        try {
-            await wait(index * 500); // Stagger requests by 500 ms each
-            console.log(username);
-            const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
-            const userData = await userResponse.json();
-
-            if (typeof userData === 'object' && !userData.error) {
-                resolve({
-                    name: username,
-                    lastAccessTime: userData.lastAccessTime || 'N/A',
-                    online: userData.online || false
-                });
-            } else {
-                resolve(null);
-            }
-        } catch (err) {
-            console.log(err.message);
-            resolve(null);
-        }
-    });
-}
-
-function createUserDataPromises(usernames) {
-    const userDataPromises = usernames.map(function(username, index) {
-        return fetchUserData(username, index);
-    });
-
-    return userDataPromises;
-}
-
-exports.handler = async function(event, context) {
+exports.handler = async (event, context) => {
     const path = event.path;
 
     try {
@@ -57,22 +23,38 @@ exports.handler = async function(event, context) {
             // Skip the first 4 rows (headers) and process only rows 5 and below
             const usernames = rows
                 .slice(4) // Start from row 5 (index 4)
-                .filter(function(row) {
-                    return row && row[1]; // Filter out empty rows and rows without usernames
-                })
-                .map(function(row) {
-                    return row[1]; // Assuming username is in the second field (index 1)
-                });
+                .filter(row => row && row[1]) // Filter out empty rows and rows without usernames
+                .map(row => row[1]); // Assuming username is in the second field (index 1)
 
             // Fetch Habbo data for each valid username
-            const userDataPromises = createUserDataPromises(usernames);
+            const userDataPromises = usernames.map((username, index) =>
+                new Promise(async (resolve) => {
+                    try {
+                        await wait(index * 500); // Stagger requests by 500 ms each
+                        console.log(username);
+                        const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
+                        const userData = await userResponse.json();
+
+                        if (typeof userData === 'object' && !userData.error) {
+                            resolve({
+                                name: username,
+                                lastAccessTime: userData.lastAccessTime || 'N/A',
+                                online: userData.online || false
+                            });
+                        } else {
+                            resolve(null);
+                        }
+                    } catch (err) {
+                        console.log(err.message);
+                        resolve(null);
+                    }
+                })
+            );
 
             const allUserData = await Promise.all(userDataPromises);
 
             // Filter out any null results (invalid responses)
-            const validUserData = allUserData.filter(function(user) {
-                return user !== null;
-            });
+            const validUserData = allUserData.filter(user => user !== null);
 
             // Build the HTML table for USDF lookup
             let table = `<table border="1" cellpadding="5" cellspacing="0">
@@ -85,7 +67,7 @@ exports.handler = async function(event, context) {
                     </thead>
                     <tbody>`;
 
-            validUserData.forEach(function(user) {
+            validUserData.forEach(user => {
                 table += `<tr>
                     <td>${user.name}</td>
                     <td>${user.lastAccessTime}</td>
@@ -131,7 +113,7 @@ exports.handler = async function(event, context) {
                       <tbody>`;
 
                 // Loop through the userData object and create rows for each field
-                Object.keys(userData).forEach(function(field) {
+                Object.keys(userData).forEach(field => {
                     table += `<tr>
                       <td>${field}</td>
                       <td>${userData[field] !== null ? userData[field] : 'N/A'}</td>
