@@ -39,7 +39,7 @@ exports.handler = async (event, context) => {
                         return null; // Return null if the response is invalid
                     }
                 } catch (err) {
-                    // Handle any JSON parsing errors or unexpected responses
+                    console.log(err + ' / ' + err.message)
                     return null;
                 }
             });
