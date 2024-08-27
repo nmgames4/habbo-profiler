@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 
+// Utility function to create a delay
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -8,9 +9,9 @@ exports.handler = async (event, context) => {
     const path = event.path;
 
     try {
-        // Check if the request is for the /usdf path
         if (path.endsWith('/usdf')) {
-            // Fetch the Google Sheet data from the provided JSON endpoint
+            // Handle the /usdf path to fetch data from Google Sheets and Habbo API
+
             const sheetUrl = 'https://script.google.com/macros/s/AKfycbzk8plLG2Vxidu_9HuCqS-OO0y6RUK-k36NHQUyWtOA9jm-vjZkyawnTAq_2x9UWp0olA/exec';
             const sheetResponse = await fetch(sheetUrl);
             const sheetData = await sheetResponse.json();
@@ -20,22 +21,21 @@ exports.handler = async (event, context) => {
                 return { statusCode: 500, body: 'No data found in Google Sheets or not enough rows.' };
             }
 
-            // Skip the first 4 rows (headers) and process only rows 5 and below
+            // Extract usernames from the Google Sheets data
             const usernames = rows
-                .slice(4) // Start from row 5 (index 4)
-                .filter(row => row && row[1]) // Filter out empty rows and rows without usernames
-                .map(row => row[1]); // Assuming username is in the second field (index 1)
+                .slice(4) // Skip first 4 rows
+                .filter(row => row && row[1]) // Filter out empty rows
+                .map(row => row[1]); // Extract username from the second column (index 1)
 
-            // Fetch Habbo data for each valid username
+            // Fetch Habbo data for each username
             const userDataPromises = usernames.map((username, index) =>
                 new Promise(async (resolve) => {
                     try {
-                        await wait(index * 500); // Stagger requests by 500 ms each
-                        console.log(username);
+                        await wait(index * 500); // Stagger requests by 500ms
                         const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
                         const userData = await userResponse.json();
 
-                        if (typeof userData === 'object' && !userData.error) {
+                        if (userData && !userData.error) {
                             resolve({
                                 name: username,
                                 lastAccessTime: userData.lastAccessTime || 'N/A',
@@ -52,32 +52,31 @@ exports.handler = async (event, context) => {
             );
 
             const allUserData = await Promise.all(userDataPromises);
-
-            // Filter out any null results (invalid responses)
             const validUserData = allUserData.filter(user => user !== null);
 
-            // Build the HTML table for USDF lookup
-            let table = `<table border="1" cellpadding="5" cellspacing="0">
+            // Build the HTML table
+            let table = `
+                <table border="1" cellpadding="5" cellspacing="0">
                     <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Last Access Time</th>
-                        <th>Online</th>
-                      </tr>
+                        <tr>
+                            <th>Name</th>
+                            <th>Last Access Time</th>
+                            <th>Online</th>
+                        </tr>
                     </thead>
                     <tbody>`;
 
             validUserData.forEach(user => {
-                table += `<tr>
-                    <td>${user.name}</td>
-                    <td>${user.lastAccessTime}</td>
-                    <td>${user.online ? 'Yes' : 'No'}</td>
-                  </tr>`;
+                table += `
+                    <tr>
+                        <td>${user.name}</td>
+                        <td>${user.lastAccessTime}</td>
+                        <td>${user.online ? 'Yes' : 'No'}</td>
+                    </tr>`;
             });
 
             table += `</tbody></table>`;
 
-            // Return the final HTML table for USDF members
             return {
                 statusCode: 200,
                 headers: { 'Content-Type': 'text/html' },
@@ -85,44 +84,42 @@ exports.handler = async (event, context) => {
             };
 
         } else {
-            // Handle the /v1/:name case for individual user data
-            const name = event.path.split('/').pop(); // Extract the username from the path
+            // Handle the /v1/:name path for individual user lookup
+            const name = path.split('/').pop(); // Extract username from the path
 
             if (!name) {
                 return { statusCode: 400, body: 'Please provide a username.' };
             }
 
             try {
-                // Fetch data for the specific user
                 const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${name}`);
                 const userData = await userResponse.json();
 
-                // Ensure the response is valid JSON and not an error page
-                if (typeof userData !== 'object' || userData.error) {
+                if (!userData || userData.error) {
                     return { statusCode: 500, body: 'Invalid username or API error.' };
                 }
 
-                // Build the HTML table for the individual user lookup (FIELD | VALUE)
-                let table = `<table border="1" cellpadding="5" cellspacing="0">
-                      <thead>
-                        <tr>
-                          <th>Field</th>
-                          <th>Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>`;
+                // Build the HTML table for individual user data
+                let table = `
+                    <table border="1" cellpadding="5" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
 
-                // Loop through the userData object and create rows for each field
                 Object.keys(userData).forEach(field => {
-                    table += `<tr>
-                      <td>${field}</td>
-                      <td>${userData[field] !== null ? userData[field] : 'N/A'}</td>
-                    </tr>`;
+                    table += `
+                        <tr>
+                            <td>${field}</td>
+                            <td>${userData[field] !== null ? userData[field] : 'N/A'}</td>
+                        </tr>`;
                 });
 
                 table += `</tbody></table>`;
 
-                // Return the final HTML table for individual lookup
                 return {
                     statusCode: 200,
                     headers: { 'Content-Type': 'text/html' },
@@ -130,7 +127,6 @@ exports.handler = async (event, context) => {
                 };
 
             } catch (err) {
-                // Handle any errors with the API request
                 return { statusCode: 500, body: `Error: ${err.message}` };
             }
         }
