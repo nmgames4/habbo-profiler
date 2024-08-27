@@ -29,6 +29,7 @@ exports.handler = async (event, context) => {
             // Fetch Habbo data for each valid username
             const userDataPromises = usernames.map(async (username) => {
                 try {
+                    await wait(1000);
                     const userResponse = await fetch(`https://www.habbo.com/api/public/users?name=${username}`);
                     const userData = await userResponse.json();
 
@@ -45,8 +46,6 @@ exports.handler = async (event, context) => {
                 } catch (err) {
                     console.log(err)
                     return null;
-                } finally {
-                    await wait(1000);
                 }
             });
 
