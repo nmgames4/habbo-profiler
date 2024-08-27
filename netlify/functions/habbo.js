@@ -43,7 +43,7 @@ exports.handler = async (event, context) => {
                         return null; // Return null if the response is invalid
                     }
                 } catch (err) {
-                    return null;
+                    return console.log(err);
                 } finally {
                     await wait(200);
                 }
