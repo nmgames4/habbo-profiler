@@ -18,8 +18,8 @@
         document.getElementById('profileForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const username = document.getElementById('username').value;
-            fetch(`/.netlify/functions/habbo?name=${username}`)
-                .then(response => response.text())
+            fetch('/.netlify/functions/habbo?name=' + username)
+                    .then(response => response.text())
                 .then(html => {
                     document.getElementById('profileOutput').innerHTML = html;
                 })
